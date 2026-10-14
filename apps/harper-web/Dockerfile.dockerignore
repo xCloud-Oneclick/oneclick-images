@@ -1,0 +1,10 @@
+.git
+.github
+.buildkite
+.vscode
+fastlane
+**/node_modules
+**/target
+**/.svelte-kit
+packages/web/build
+*.pdf
