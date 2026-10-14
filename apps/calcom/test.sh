@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
-# Boot the image against PostgreSQL, check migrations, the version endpoint, the first-run setup page and
-# the runtime public URL rewrite, restart, check again.
+# Check the image size, the unprivileged user and the missing package managers, then boot the image against
+# PostgreSQL, check migrations, the app store seed, the version endpoint, the first-run setup page and the
+# runtime public URL rewrite, restart, check again.
 set -euo pipefail
 : "${IMAGE:?IMAGE is required}"
+
+SIZE_BUDGET_MB=2300
+
+size=$(docker image inspect -f '{{.Size}}' "$IMAGE")
+size_mb=$((size / 1000000))
+compressed_mb=$(($(docker save "$IMAGE" | gzip -c | wc -c) / 1000000))
+echo "image size: ${size_mb} MB uncompressed, ${compressed_mb} MB compressed (budget ${SIZE_BUDGET_MB} MB uncompressed)"
+echo "largest layers:"
+docker history --no-trunc --format '{{.Size}}\t{{.CreatedBy}}' "$IMAGE" | sort -hr | head -n 5 | cut -c1-200
+[ "$size_mb" -le "$SIZE_BUDGET_MB" ] || { echo "image is larger than the ${SIZE_BUDGET_MB} MB budget" >&2; exit 1; }
+
+[ "$(docker image inspect -f '{{.Config.User}}' "$IMAGE")" = node ] \
+  || { echo "image must run as the node user" >&2; exit 1; }
+if docker run --rm --entrypoint sh "$IMAGE" -c 'command -v npm || command -v yarn || command -v npx' >/dev/null 2>&1; then
+  echo "package managers must not be present in the runtime image" >&2
+  exit 1
+fi
 
 POSTGRES='postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea'
 tag=$(od -An -N5 -tx1 /dev/urandom | tr -d ' \n')
@@ -39,9 +57,11 @@ wait_ready() {
 }
 
 check() {
-  [ "$(status /auth/setup)" = 200 ] || { echo "/auth/setup is not 200 $1" >&2; exit 1; }
-  [ "$(body_has /auth/setup cal.example.test)" = 1 ] || { echo "public URL was not applied $1" >&2; exit 1; }
-  [ "$(body_has /auth/setup NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER)" = 0 ] || { echo "build placeholder left in pages $1" >&2; exit 1; }
+  local code
+  code=$(status '/auth/setup?step=1')
+  [ "$code" = 200 ] || { echo "/auth/setup?step=1 returned $code $1" >&2; exit 1; }
+  [ "$(body_has '/auth/setup?step=1' cal.example.test)" = 1 ] || { echo "public URL was not applied $1" >&2; exit 1; }
+  [ "$(body_has '/auth/setup?step=1' NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER)" = 0 ] || { echo "build placeholder left in pages $1" >&2; exit 1; }
 }
 
 docker network create "$net" >/dev/null
@@ -54,16 +74,18 @@ done
 docker exec "$db" pg_isready -h localhost -U cal -d calendso >/dev/null
 
 docker run -d --name "$app" --network "$net" \
-  -e "DATABASE_HOST=$db:5432" \
   -e "DATABASE_URL=postgresql://cal:$pw@$db:5432/calendso" \
   -e "DATABASE_DIRECT_URL=postgresql://cal:$pw@$db:5432/calendso" \
   -e "NEXT_PUBLIC_WEBAPP_URL=$url" -e "NEXTAUTH_URL=$url/api/auth" \
   -e "NEXTAUTH_SECRET=$secret" -e "CALENDSO_ENCRYPTION_KEY=$enc" \
   -e CALCOM_TELEMETRY_DISABLED=1 "$IMAGE" >/dev/null
 wait_ready
+[ "$(docker exec "$app" id -u)" != 0 ] || { echo "app runs as root" >&2; exit 1; }
 check "after first start"
 docker exec "$db" psql -U cal -d calendso -tAc 'SELECT count(*) FROM _prisma_migrations' | grep -qE '^[1-9][0-9]*$' \
   || { echo "migrations were not applied" >&2; exit 1; }
+docker exec "$db" psql -U cal -d calendso -tAc 'SELECT count(*) FROM "App"' | grep -qE '^[1-9][0-9]*$' \
+  || { echo "app store was not seeded" >&2; exit 1; }
 
 docker restart "$app" >/dev/null
 wait_ready
