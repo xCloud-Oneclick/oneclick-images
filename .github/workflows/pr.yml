@@ -67,15 +67,24 @@ jobs:
       - id: meta
         run: scripts/read-meta.sh "${{ matrix.app }}"
       - run: scripts/fetch-upstream.sh "${{ matrix.app }}"
+      - name: expose cache service to buildx
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            for (const k of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL', 'ACTIONS_CACHE_URL', 'ACTIONS_CACHE_SERVICE_V2']) {
+              if (process.env[k]) core.exportVariable(k, process.env[k]);
+            }
       - name: build
         env:
           DOCKERFILE: ${{ steps.meta.outputs.dockerfile }}
           IMAGE: ${{ steps.meta.outputs.image }}
           ARCH: ${{ matrix.arch }}
           APP: ${{ matrix.app }}
-        run: >-
-          docker buildx build --platform "linux/$ARCH" -f "$DOCKERFILE"
-          --build-context "app=apps/$APP" --load -t "local/$IMAGE:test" src
+        run: |
+          docker buildx create --use --name ci >/dev/null
+          docker buildx build --platform "linux/$ARCH" -f "$DOCKERFILE" \
+            --build-context "app=apps/$APP" --cache-from "type=gha,scope=$APP-$ARCH" --cache-to "type=gha,mode=max,scope=$APP-$ARCH,ignore-error=true" \
+            --load -t "local/$IMAGE:test" src
       - name: test
         env:
           IMAGE: local/${{ steps.meta.outputs.image }}:test

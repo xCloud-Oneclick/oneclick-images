@@ -80,6 +80,14 @@ jobs:
           fi
       - if: steps.exists.outputs.found != 'true'
         run: scripts/fetch-upstream.sh "${{ matrix.app }}"
+      - if: steps.exists.outputs.found != 'true'
+        name: expose cache service to buildx
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            for (const k of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL', 'ACTIONS_CACHE_URL', 'ACTIONS_CACHE_SERVICE_V2']) {
+              if (process.env[k]) core.exportVariable(k, process.env[k]);
+            }
       - name: build, test, push by digest
         if: steps.exists.outputs.found != 'true'
         env:
@@ -92,10 +100,11 @@ jobs:
           NAME="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE"
           docker buildx create --use --name pub >/dev/null
           docker buildx build --platform "linux/$ARCH" -f "$DOCKERFILE" \
-            --build-context "app=apps/$APP" --load -t "local/$IMAGE:test" src
+            --build-context "app=apps/$APP" --cache-from "type=gha,scope=$APP-$ARCH" --cache-to "type=gha,mode=max,scope=$APP-$ARCH,ignore-error=true" \
+            --load -t "local/$IMAGE:test" src
           IMAGE="local/$IMAGE:test" "apps/$APP/test.sh"
           docker buildx build --platform "linux/$ARCH" -f "$DOCKERFILE" \
-            --build-context "app=apps/$APP" --provenance=false \
+            --build-context "app=apps/$APP" --cache-from "type=gha,scope=$APP-$ARCH" --provenance=false \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
             --output "type=image,name=$NAME,push-by-digest=true,name-canonical=true,push=true" \
             --metadata-file meta.json src
