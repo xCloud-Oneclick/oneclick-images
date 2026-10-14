@@ -1,0 +1,6 @@
+image: calcom
+version: 6.2.0-xcloud.1
+upstream: https://github.com/calcom/cal.diy
+ref: v6.2.0
+commit: 1c193cca8682b33b9866c792186033f7ef886682
+dockerfile: Dockerfile
