@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   plan:
+    timeout-minutes: 5
     runs-on: ubuntu-24.04
     outputs:
       apps: ${{ steps.apps.outputs.apps }}
@@ -41,6 +42,7 @@ jobs:
           echo "apps=$(BASE=$BASE scripts/changed-apps.sh)" >>"$GITHUB_OUTPUT"
 
   build:
+    timeout-minutes: 90
     needs: plan
     if: needs.plan.outputs.apps != '[]'
     environment: publish
@@ -70,7 +72,7 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE:$VERSION"
           if docker buildx imagetools inspect "$REF" >/dev/null 2>&1; then
             echo "::notice::$REF already exists; tags are immutable, skipping"
@@ -107,6 +109,7 @@ jobs:
           retention-days: 1
 
   merge:
+    timeout-minutes: 30
     needs: [plan, build]
     environment: publish
     permissions:
@@ -140,10 +143,10 @@ jobs:
             echo "::notice::no new digests (version already published); nothing to do"
             exit 0
           fi
-          echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           NAME="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE"
           for arch in amd64 arm64; do
-            docker run --rm -e TRIVY_USERNAME="${{ github.actor }}" -e TRIVY_PASSWORD="$GH_TOKEN" \
+            docker run --rm -e TRIVY_USERNAME="$GITHUB_ACTOR" -e TRIVY_PASSWORD="$GH_TOKEN" \
               ghcr.io/aquasecurity/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa \
               image --quiet --exit-code 1 --severity CRITICAL --ignore-unfixed "$NAME@$(cat digests/$arch)"
           done

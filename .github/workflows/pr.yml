@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   leak-check:
+    timeout-minutes: 10
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,6 +30,7 @@ jobs:
         run: scripts/leak-check.sh
 
   plan:
+    timeout-minutes: 5
     runs-on: ubuntu-24.04
     outputs:
       apps: ${{ steps.apps.outputs.apps }}
@@ -44,6 +46,7 @@ jobs:
         run: echo "apps=$(scripts/changed-apps.sh)" >>"$GITHUB_OUTPUT"
 
   build:
+    timeout-minutes: 60
     needs: plan
     if: needs.plan.outputs.apps != '[]'
     strategy:
@@ -79,6 +82,7 @@ jobs:
         run: apps/${{ matrix.app }}/test.sh
 
   ci-ok:
+    timeout-minutes: 5
     if: always()
     needs: [leak-check, plan, build]
     runs-on: ubuntu-24.04
