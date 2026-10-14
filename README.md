@@ -9,7 +9,7 @@ multi-arch tag with signed build provenance. Licences stay with the upstream pro
 ## Pull
 
 ```bash
-docker pull ghcr.io/xclouddev/<image>:<upstream-version>-xcloud.<n>
+docker pull ghcr.io/xcloud-oneclick/<image>:<upstream-version>-xcloud.<n>
 ```
 
 Tags are immutable: a rebuild of the same upstream release gets the next `-xcloud.<n>`.
@@ -17,7 +17,7 @@ Tags are immutable: a rebuild of the same upstream release gets the next `-xclou
 Verify the provenance of an image:
 
 ```bash
-gh attestation verify oci://ghcr.io/xclouddev/<image>:<tag> --owner xCloudDev
+gh attestation verify oci://ghcr.io/xcloud-oneclick/<image>:<tag> --owner xCloud-Oneclick
 ```
 
 ## Layout
@@ -32,7 +32,7 @@ apps/<slug>/
 `build.yaml`:
 
 ```yaml
-image: example-web            # ghcr.io/xclouddev/<image>
+image: example-web            # ghcr.io/xcloud-oneclick/<image>
 version: 1.2.3-xcloud.1       # published tag; bump -xcloud.<n> to rebuild
 upstream: https://github.com/example/example
 ref: v1.2.3                   # upstream tag
