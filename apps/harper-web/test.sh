@@ -39,6 +39,15 @@ wait_ready() {
   return 1
 }
 
+if docker run --rm --entrypoint sh "$IMAGE" -c 'command -v npm' >/dev/null 2>&1; then
+  echo "npm must not be present in the runtime image" >&2
+  exit 1
+fi
+# Same gate as the publish workflow, so a vulnerable base fails at the pull request.
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  ghcr.io/aquasecurity/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa \
+  image --quiet --exit-code 1 --severity CRITICAL --ignore-unfixed "$IMAGE"
+
 docker run --rm --entrypoint node "$IMAGE" -e "import('mysql2').then(()=>import('drizzle-orm/mysql2')).then(()=>console.log('mysql2 ok'))"
 
 docker network create "$net" >/dev/null

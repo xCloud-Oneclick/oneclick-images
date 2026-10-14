@@ -63,6 +63,10 @@ LABEL org.opencontainers.image.url="https://github.com/Automattic/harper" \
       org.opencontainers.image.title="Harper web editor" \
       org.opencontainers.image.version="2.12.0-xcloud.1" \
       org.opencontainers.image.licenses="Apache-2.0"
+# The server needs only the node binary: drop the package managers shipped in the base image
+# (npm bundles a vulnerable node-tar that fails the publish scan).
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
+    /usr/local/bin/corepack /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 WORKDIR /app
 COPY --from=runtime-deps /out/node_modules ./node_modules
 COPY --from=web-out /out ./build
