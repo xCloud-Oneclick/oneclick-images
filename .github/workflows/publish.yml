@@ -1,0 +1,160 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/**']
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App slug under apps/
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: apps
+        env:
+          APP: ${{ inputs.app }}
+          BASE: ${{ github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: |
+          # first push to a branch has no parent: diff against the empty tree
+          if [ -z "${APP}" ] && [ "${BASE}" = "0000000000000000000000000000000000000000" ]; then
+            BASE=$(git hash-object -t tree /dev/null)
+          fi
+          echo "apps=$(BASE=$BASE scripts/changed-apps.sh)" >>"$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.apps != '[]'
+    environment: publish
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.apps) }}
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: meta
+        run: scripts/read-meta.sh "${{ matrix.app }}"
+      - id: exists
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE:$VERSION"
+          if docker buildx imagetools inspect "$REF" >/dev/null 2>&1; then
+            echo "::notice::$REF already exists; tags are immutable, skipping"
+            echo "found=true" >>"$GITHUB_OUTPUT"
+          fi
+      - if: steps.exists.outputs.found != 'true'
+        run: scripts/fetch-upstream.sh "${{ matrix.app }}"
+      - name: build, test, push by digest
+        if: steps.exists.outputs.found != 'true'
+        env:
+          DOCKERFILE: ${{ steps.meta.outputs.dockerfile }}
+          IMAGE: ${{ steps.meta.outputs.image }}
+          ARCH: ${{ matrix.arch }}
+          APP: ${{ matrix.app }}
+        run: |
+          set -euo pipefail
+          NAME="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE"
+          docker buildx create --use --name pub >/dev/null
+          docker buildx build --platform "linux/$ARCH" -f "$DOCKERFILE" \
+            --build-context "app=apps/$APP" --load -t "local/$IMAGE:test" src
+          IMAGE="local/$IMAGE:test" "apps/$APP/test.sh"
+          docker buildx build --platform "linux/$ARCH" -f "$DOCKERFILE" \
+            --build-context "app=apps/$APP" --provenance=false \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --output "type=image,name=$NAME,push-by-digest=true,name-canonical=true,push=true" \
+            --metadata-file meta.json src
+          mkdir -p digests
+          jq -r '."containerimage.digest"' meta.json >"digests/$ARCH"
+      - if: steps.exists.outputs.found != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ matrix.app }}-${{ matrix.arch }}
+          path: digests/
+          retention-days: 1
+
+  merge:
+    needs: [plan, build]
+    environment: publish
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.apps) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: meta
+        run: scripts/read-meta.sh "${{ matrix.app }}"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digests-${{ matrix.app }}-*
+          path: digests
+          merge-multiple: true
+      - id: publish
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ ! -f digests/amd64 ] || [ ! -f digests/arm64 ]; then
+            echo "::notice::no new digests (version already published); nothing to do"
+            exit 0
+          fi
+          echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          NAME="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE"
+          for arch in amd64 arm64; do
+            docker run --rm -e TRIVY_USERNAME="${{ github.actor }}" -e TRIVY_PASSWORD="$GH_TOKEN" \
+              ghcr.io/aquasecurity/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa \
+              image --quiet --exit-code 1 --severity CRITICAL --ignore-unfixed "$NAME@$(cat digests/$arch)"
+          done
+          docker buildx imagetools create -t "$NAME:$VERSION" "$NAME@$(cat digests/amd64)" "$NAME@$(cat digests/arm64)"
+          DIGEST=$(docker buildx imagetools inspect "$NAME:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "name=$NAME" >>"$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >>"$GITHUB_OUTPUT"
+          echo "::notice::published $NAME:$VERSION@$DIGEST"
+      - if: steps.publish.outputs.digest != ''
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.publish.outputs.name }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true

@@ -1,0 +1,90 @@
+name: pr
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  leak-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: gitleaks
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro"
+          ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          dir /repo --redact --no-banner
+      - name: internal references
+        env:
+          DENYLIST: ${{ secrets.INTERNAL_DENYLIST }}
+        run: scripts/leak-check.sh
+
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: apps
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: echo "apps=$(scripts/changed-apps.sh)" >>"$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.apps != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.apps) }}
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: meta
+        run: scripts/read-meta.sh "${{ matrix.app }}"
+      - run: scripts/fetch-upstream.sh "${{ matrix.app }}"
+      - name: build
+        env:
+          DOCKERFILE: ${{ steps.meta.outputs.dockerfile }}
+          IMAGE: ${{ steps.meta.outputs.image }}
+          ARCH: ${{ matrix.arch }}
+          APP: ${{ matrix.app }}
+        run: >-
+          docker buildx build --platform "linux/$ARCH" -f "$DOCKERFILE"
+          --build-context "app=apps/$APP" --load -t "local/$IMAGE:test" src
+      - name: test
+        env:
+          IMAGE: local/${{ steps.meta.outputs.image }}:test
+        run: apps/${{ matrix.app }}/test.sh
+
+  ci-ok:
+    if: always()
+    needs: [leak-check, plan, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | jq -e 'all(. == "success" or . == "skipped")'
