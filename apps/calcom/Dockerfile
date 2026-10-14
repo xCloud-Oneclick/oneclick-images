@@ -51,6 +51,9 @@ COPY packages ./packages
 
 RUN yarn config set httpTimeout 1200000
 RUN npx turbo prune --scope=@calcom/web --scope=@calcom/trpc --docker
+# Raise the dependencies that the publish-time vulnerability scan flags (fixed releases exist; the v6.2.0 lockfile predates them).
+COPY --from=app resolutions.json /tmp/resolutions.json
+RUN node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json","utf8"));p.resolutions={...p.resolutions,...JSON.parse(fs.readFileSync("/tmp/resolutions.json","utf8"))};fs.writeFileSync("package.json",JSON.stringify(p,null,2)+"\n")'
 RUN yarn install
 # Build and make embed servable from web/public/embed folder
 RUN yarn workspace @calcom/trpc run build
@@ -93,7 +96,7 @@ RUN rm -rf apps/web/.next/standalone apps/web/.next/cache apps/web/.next/trace a
  && find node_modules -type f \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \) -not -path '*/typescript/*' -delete \
  && rm -rf node_modules/@types \
  && for p in @biomejs lingo.dev trigger.dev @trigger.dev/build @trigger.dev/schema-to-json prismock @depot @nestjs/cli \
-      @microsoft/api-extractor react-devtools-core vite playwright playwright-core @playwright; do rm -rf "node_modules/$p"; done \
+      @microsoft/api-extractor react-devtools-core vite vitest @vitest playwright playwright-core @playwright; do rm -rf "node_modules/$p"; done \
  && find /calcom -type d \( -name 'turbo' -o -name 'turbo-linux-*' \) -path '*/node_modules/*' -prune -exec rm -rf {} + \
  && rm -f node_modules/.bin/turbo
 
@@ -105,8 +108,10 @@ LABEL org.opencontainers.image.url="https://github.com/calcom/cal.diy" \
       org.opencontainers.image.licenses="AGPL-3.0"
 
 # openssl is needed by the prisma schema engine. The package managers shipped in the base image are not
-# needed to run the app (npm bundles libraries that trip the vulnerability scan).
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+# needed to run the app (npm bundles libraries that trip the vulnerability scan). The upgrade picks up
+# Debian security fixes published after the base image was built.
+RUN apt-get update && apt-get -y --no-install-recommends upgrade \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
     /usr/local/bin/corepack /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
