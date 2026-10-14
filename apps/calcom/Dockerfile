@@ -84,14 +84,16 @@ ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
 RUN sh scripts/replace-placeholder.sh http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER ${NEXT_PUBLIC_WEBAPP_URL}
 
 # The runtime needs the built app, `next start`, prisma migrate and ts-node (for the app store seed).
-# Source maps, the standalone copy of the server, type declarations and build/test tooling are not used.
-RUN rm -rf apps/web/.next/standalone apps/web/.next/cache apps/web/.next/trace \
+# Source maps, the standalone copy of the server, type declarations, end-to-end tests and build/test
+# tooling are not used.
+RUN rm -rf apps/web/.next/standalone apps/web/.next/cache apps/web/.next/trace apps/web/playwright \
+ && find apps/web packages -type f \( -name '*.e2e.ts' -o -name '*.e2e.tsx' \) -not -path '*/node_modules/*' -delete \
  && find apps/web/.next -type f -name '*.map' -delete \
  && find node_modules packages -type f \( -name '*.js.map' -o -name '*.mjs.map' -o -name '*.cjs.map' -o -name '*.css.map' -o -name '*.d.ts.map' \) -delete \
  && find node_modules -type f \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \) -not -path '*/typescript/*' -delete \
  && rm -rf node_modules/@types \
  && for p in @biomejs lingo.dev trigger.dev @trigger.dev/build @trigger.dev/schema-to-json prismock @depot @nestjs/cli \
-      @microsoft/api-extractor react-devtools-core vite; do rm -rf "node_modules/$p"; done \
+      @microsoft/api-extractor react-devtools-core vite playwright playwright-core @playwright; do rm -rf "node_modules/$p"; done \
  && find /calcom -type d \( -name 'turbo' -o -name 'turbo-linux-*' \) -path '*/node_modules/*' -prune -exec rm -rf {} + \
  && rm -f node_modules/.bin/turbo
 
