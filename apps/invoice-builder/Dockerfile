@@ -81,5 +81,5 @@ ENV SERVICE=all \
 VOLUME ["/app-data"]
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD ["node", "-e", "fetch('http://localhost:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+  CMD ["node", "-e", "require('http').get({host:'localhost',port:3001,path:'/api/health',family:4},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
 CMD ["sh", "/app/scripts/docker-start.sh"]

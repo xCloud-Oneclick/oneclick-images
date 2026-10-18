@@ -17,6 +17,7 @@ tag=$(od -An -N5 -tx1 /dev/urandom | tr -d ' \n')
 app="invoice-builder-app-$tag"
 cleanup() {
   docker logs "$app" 2>&1 | tail -n 50 || true
+  docker exec "$app" sh -c 'tail -n 20 /var/log/nginx/error.log' 2>&1 || true
   docker rm -f "$app" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -33,9 +34,12 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 # Prints "<status> <body prefix>" of <method> <path> issued from inside the container against nginx.
 req() {
   docker exec "$app" node -e "
-    const o={method:'$1',redirect:'manual'};
-    if('$3'){o.headers={'content-type':'application/json'};o.body='$3';}
-    fetch('http://localhost:3001$2',o).then(async r=>console.log(r.status,(await r.text()).slice(0,200).replace(/\s+/g,' '))).catch(e=>console.log(0,String(e)))"
+    const h=require('http');
+    const body='$3';
+    const q=h.request({host:'localhost',port:3001,family:4,path:'$2',method:'$1',headers:body?{'content-type':'application/json'}:{}},r=>{
+      let s='';r.on('data',c=>s+=c);r.on('end',()=>console.log(r.statusCode,s.slice(0,200).replace(/\\s+/g,' ')));});
+    q.on('error',e=>console.log(0,String(e)));
+    q.end(body||undefined);"
 }
 expect() { # <label> <actual> <expected substring>
   case "$2" in *"$3"*) ;; *) echo "$1: expected '$3', got '$2'" >&2; exit 1;; esac
@@ -46,7 +50,7 @@ wait_ready() {
     case "$(req GET /api/health 2>/dev/null || true)" in 200*) return 0;; esac
     sleep 2
   done
-  echo "app never became ready" >&2
+  echo "app never became ready; last probe: $(req GET /api/health 2>&1)" >&2
   return 1
 }
 
