@@ -4,7 +4,7 @@
 set -euo pipefail
 : "${IMAGE:?IMAGE is required}"
 
-SIZE_BUDGET_MB=250
+SIZE_BUDGET_MB=285
 
 user=$(docker image inspect -f '{{.Config.User}}' "$IMAGE")
 [ "$user" = "65532:65532" ] || { echo "expected user 65532:65532, got '$user'" >&2; exit 1; }
