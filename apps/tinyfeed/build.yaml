@@ -1,0 +1,6 @@
+image: tinyfeed
+version: 1.5.1-xcloud.1
+upstream: https://github.com/TheBigRoomXXL/tinyfeed
+ref: v1.5.1
+commit: 2bf3098339be79bbbd7d52b82986bc655a57c96c
+dockerfile: Dockerfile
