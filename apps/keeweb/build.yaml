@@ -1,0 +1,6 @@
+image: keeweb
+version: 1.18.7-xcloud.1
+upstream: https://github.com/keeweb/keeweb
+ref: v1.18.7
+commit: dfc6201285ec1dfecd2e8f80363d82811e75bc6d
+dockerfile: Dockerfile
