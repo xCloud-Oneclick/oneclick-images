@@ -11,7 +11,12 @@ commit=$(yq -r .commit "$cfg")
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "commit must be a full 40-char SHA" >&2; exit 1; }
 
 git init -q src
-git -C src fetch -q --depth 1 "$upstream" "refs/tags/$ref"
+if [ "$ref" = "$commit" ]; then
+  # Upstream publishes no release tags: the pin is a bare commit.
+  git -C src fetch -q --depth 1 "$upstream" "$commit"
+else
+  git -C src fetch -q --depth 1 "$upstream" "refs/tags/$ref"
+fi
 actual=$(git -C src rev-parse 'FETCH_HEAD^{commit}')
 [ "$actual" = "$commit" ] || { echo "$ref resolves to $actual, build.yaml pins $commit" >&2; exit 1; }
 git -C src checkout -q "$commit"
