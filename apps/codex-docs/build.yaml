@@ -1,0 +1,6 @@
+image: codex-docs
+version: 2.2.5-xcloud.1
+upstream: https://github.com/codex-team/codex.docs
+ref: v2.2.5
+commit: f61d398270a71d08cba3069824c6d5042774d21c
+dockerfile: Dockerfile
