@@ -3,7 +3,7 @@
 set -euo pipefail
 : "${IMAGE:?IMAGE is required}"
 
-SIZE_BUDGET_MB=400
+SIZE_BUDGET_MB=260
 
 size=$(docker image inspect -f '{{.Size}}' "$IMAGE")
 size_mb=$((size / 1000000))
@@ -33,7 +33,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 
 # Prints "<status> <body prefix>" of GET <path> issued from inside the app container.
 get() {
-  docker exec "$app" node -e "fetch('http://127.0.0.1:3000$1').then(async r=>console.log(r.status, (await r.text()).slice(0,4000).replace(/\s+/g,' '))).catch(e=>console.log(0, String(e)))"
+  docker exec "$app" node -e "fetch('http://localhost:3000$1').then(async r=>console.log(r.status, (await r.text()).slice(0,4000).replace(/\s+/g,' '))).catch(e=>console.log(0, String(e)))"
 }
 
 wait_ready() {
