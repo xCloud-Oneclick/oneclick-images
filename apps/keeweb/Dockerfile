@@ -29,6 +29,7 @@ LABEL org.opencontainers.image.title="KeeWeb" \
       org.opencontainers.image.licenses="MIT"
 
 COPY --from=app nginx.conf /etc/nginx/conf.d/default.conf
+USER root
 RUN rm -rf /usr/share/nginx/html/*
 COPY --from=fetch /w/site/ /usr/share/nginx/html/
 
