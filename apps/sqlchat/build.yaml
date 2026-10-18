@@ -1,0 +1,6 @@
+image: sqlchat
+version: main-7a63884-xcloud.1
+upstream: https://github.com/sqlchat/sqlchat
+ref: 7a638846bdfc43ec9c42899485f63c13226111be
+commit: 7a638846bdfc43ec9c42899485f63c13226111be
+dockerfile: Dockerfile
