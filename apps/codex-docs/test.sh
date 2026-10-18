@@ -37,10 +37,11 @@ trap cleanup EXIT
 
 docker run -d --name "$app" -p 3000 \
   -e "APP_CONFIG_auth_password=\"$pw\"" -e 'APP_CONFIG_auth_secret="smoke-test-secret"' "$IMAGE" >/dev/null
-base="http://localhost:$(docker port "$app" 3000/tcp | head -n1 | sed 's/.*://')"
 
+# The published host port changes when the container restarts, so resolve it on every call.
 wait_ready() {
   for _ in $(seq 1 60); do
+    base="http://localhost:$(docker port "$app" 3000/tcp 2>/dev/null | head -n1 | sed 's/.*://')"
     [ "$(curl -s -o /dev/null -w '%{http_code}' "$base/" || true)" = 200 ] && return 0
     sleep 2
   done
