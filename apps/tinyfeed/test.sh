@@ -57,6 +57,9 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 
+# First mount of an empty named volume copies /app (owned by the unprivileged user) from the image.
+docker run --rm -v "$vol:/app" "$IMAGE" --help >/dev/null 2>&1
+
 # Seed the feeds list into the volume (the image has no shell).
 docker run --rm -v "$vol:/app" "$BUSYBOX" sh -c 'echo http://feedsrv/feed.xml > /app/feeds.txt && chown 10001:10001 /app/feeds.txt'
 
