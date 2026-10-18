@@ -15,8 +15,13 @@ RUN yarn build-all
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps
 WORKDIR /usr/src/app
 COPY package.json yarn.lock ./
-RUN yarn install --production --frozen-lockfile --ignore-engines
+# The upstream lockfile pins versions with CRITICAL advisories (locutus 2.0.16, underscore 1.4.4,
+# proxy-addr 2.0.7); force the patched releases. Only the production tree is affected; the app
+# renders pages and runs its database against them in test.sh.
+RUN node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json"));p.resolutions={locutus:"3.0.36",underscore:"1.13.8","proxy-addr":"2.0.8"};fs.writeFileSync("package.json",JSON.stringify(p,null,2))' \
+ && yarn install --production --ignore-engines
 RUN rm -rf node_modules/@types \
+ && find node_modules/locutus -mindepth 1 -maxdepth 1 ! -name php ! -name package.json -exec rm -rf {} + \
  && find node_modules -type d \( -name test -o -name tests -o -name __tests__ -o -name docs -o -name example -o -name examples \) -prune -exec rm -rf {} + \
  && find node_modules -type f \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.md' -o -name '*.markdown' -o -name 'CHANGELOG*' \) -delete \
  && du -sh node_modules/* node_modules/@*/* | sort -h | tail -n 8
