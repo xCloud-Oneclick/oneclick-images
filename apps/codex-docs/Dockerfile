@@ -7,8 +7,7 @@
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
 WORKDIR /usr/src/app
 COPY package.json yarn.lock ./
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
-    yarn install --frozen-lockfile --ignore-engines
+RUN yarn install --frozen-lockfile --ignore-engines
 COPY . .
 RUN yarn build-all
 
@@ -16,8 +15,7 @@ RUN yarn build-all
 FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps
 WORKDIR /usr/src/app
 COPY package.json yarn.lock ./
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
-    yarn install --production --frozen-lockfile --ignore-engines
+RUN yarn install --production --frozen-lockfile --ignore-engines
 RUN rm -rf node_modules/@types \
  && find node_modules -type d \( -name test -o -name tests -o -name __tests__ -o -name docs -o -name example -o -name examples \) -prune -exec rm -rf {} + \
  && find node_modules -type f \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.md' -o -name '*.markdown' -o -name 'CHANGELOG*' \) -delete \
