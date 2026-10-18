@@ -24,24 +24,26 @@ RUN sed -i 's/typescript: {/eslint: { ignoreDuringBuilds: true },\n  typescript:
  && grep -q ignoreDuringBuilds next.config.js
 RUN pnpm run build
 
-# 2. Slim the standalone tree: no sourcemaps, type declarations or database CLI engines
+# 2. Slim the standalone tree: no sourcemaps, type declarations, database CLI engines, or sharp/typescript
+#    (the app does not use next/image, and next.config is plain JS)
 FROM build AS slim
 RUN cp -a .next/standalone /out && cp -a .next/static /out/.next/static && cp -a public /out/public \
  && find /out -type f \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \) -delete \
  && find /out -type f \( -name 'migration-engine*' -o -name 'schema-engine*' -o -name 'introspection-engine*' -o -name 'prisma-fmt*' \) -delete \
  && find /out -type f \( -name '.env*' -o -name '*.md' \) -delete \
+ && rm -rf /out/node_modules/.pnpm/@img+* /out/node_modules/.pnpm/sharp@* /out/node_modules/sharp /out/node_modules/@img \
+    /out/node_modules/.pnpm/typescript@* /out/node_modules/typescript \
  && du -sh /out/* /out/node_modules/.pnpm/* 2>/dev/null | sort -h | tail -n 15
 
-# 3. Runtime: plain alpine plus the node binary only (no npm, corepack or yarn)
+# 3. Runtime: plain alpine plus the distro nodejs package (no npm, corepack or yarn)
 FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 LABEL org.opencontainers.image.url="https://github.com/sqlchat/sqlchat" \
       org.opencontainers.image.title="SQL Chat" \
       org.opencontainers.image.version="main-7a63884-xcloud.1" \
       org.opencontainers.image.licenses="MIT"
-# openssl: needed by the Prisma query engine. libstdc++ and libgcc: needed by node.
-RUN apk add --no-cache libstdc++ libgcc openssl \
+# openssl: needed by the Prisma query engine.
+RUN apk add --no-cache nodejs openssl \
  && adduser -D -u 1000 node
-COPY --from=build /usr/local/bin/node /usr/local/bin/node
 WORKDIR /app
 COPY --from=slim --chown=node:node /out ./
 COPY --from=build /app/LICENSE ./LICENSE.upstream
