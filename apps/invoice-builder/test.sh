@@ -3,7 +3,7 @@
 set -euo pipefail
 : "${IMAGE:?IMAGE is required}"
 
-SIZE_BUDGET_MB=300
+SIZE_BUDGET_MB=245
 
 size=$(docker image inspect -f '{{.Size}}' "$IMAGE")
 size_mb=$((size / 1000000))
@@ -35,9 +35,9 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 req() {
   docker exec "$app" node -e "
     const h=require('http');
-    const body='$3';
+    const body='${3:-}';
     const q=h.request({host:'localhost',port:3001,family:4,path:'$2',method:'$1',headers:body?{'content-type':'application/json'}:{}},r=>{
-      let s='';r.on('data',c=>s+=c);r.on('end',()=>console.log(r.statusCode,s.slice(0,200).replace(/\\s+/g,' ')));});
+      let s='';r.on('data',c=>s+=c);r.on('end',()=>console.log(r.statusCode,s.slice(0,6000).replace(/\\s+/g,' ')));});
     q.on('error',e=>console.log(0,String(e)));
     q.end(body||undefined);"
 }
