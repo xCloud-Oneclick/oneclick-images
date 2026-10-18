@@ -48,7 +48,8 @@ WORKDIR /app
 COPY --from=slim --chown=node:node /out ./
 COPY --from=build /app/LICENSE ./LICENSE.upstream
 USER node
-ENV NODE_ENV=production PORT=3000 NEXT_TELEMETRY_DISABLED=1
+# HOSTNAME=0 binds all IPv4 interfaces (Docker sets HOSTNAME to the container id, which the server would otherwise bind to)
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0 NEXT_TELEMETRY_DISABLED=1
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD ["node", "-e", "fetch('http://localhost:3000/api/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
