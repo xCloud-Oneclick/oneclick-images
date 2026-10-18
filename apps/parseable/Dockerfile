@@ -1,5 +1,5 @@
 # Build context is the upstream Parseable tree at the pinned release commit.
-# The builder is upstream's root Dockerfile (upstream's own `release-lto` profile: fat LTO, one codegen unit; no Kafka feature) with the base image
+# The builder is upstream's root Dockerfile (release profile with thin LTO, 4 codegen units and stripped symbols, since fat LTO exhausts memory on the arm64 runner; no Kafka feature) with the base image
 # pinned by digest and the binary stripped. The runtime is distroless cc (glibc, no package manager),
 # the `debug-nonroot` variant only for its busybox wget, which serves the HEALTHCHECK. It runs as the
 # unprivileged uid 65532 and owns the two data directories.
@@ -8,13 +8,15 @@ FROM rust:1.96.0-bookworm@sha256:5e2214abe154fe26e39f64488952e5c991eeed1d6d6da7c
 
 WORKDIR /parseable
 COPY . .
-ENV CARGO_PROFILE_RELEASE_STRIP=symbols \
+ENV CARGO_PROFILE_RELEASE_LTO=thin \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=4 \
+    CARGO_PROFILE_RELEASE_STRIP=symbols \
     CARGO_PROFILE_RELEASE_DEBUG=false
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/parseable/target \
-    cargo build --profile release-lto --locked \
- && install -D target/release-lto/parseable /out/usr/bin/parseable \
+    cargo build --release --locked \
+ && install -D target/release/parseable /out/usr/bin/parseable \
  && mkdir -p /out/data /out/staging \
  && du -sh /out/usr/bin/parseable
 
@@ -40,4 +42,5 @@ EXPOSE 8000
 VOLUME ["/data", "/staging"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["/busybox/wget", "-q", "-O", "/dev/null", "http://127.1:8000/api/v1/liveness"]
+ENTRYPOINT []
 CMD ["/usr/bin/parseable", "local-store"]
