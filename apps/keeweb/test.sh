@@ -32,7 +32,7 @@ trap cleanup EXIT
 
 # Prints the HTTP status of GET <path> issued from inside the container.
 status() {
-  docker exec "$app" wget -S -q -O /dev/null "http://localhost:8080$1" 2>&1 | awk '/HTTP\//{c=$2} END{print c+0}' || true
+  docker exec "$app" wget -S -q -O /dev/null "http://localhost:8080$1" 2>&1 | awk '/^ *HTTP\//{c=$2} END{print c+0}' || true
 }
 
 wait_ready() {
