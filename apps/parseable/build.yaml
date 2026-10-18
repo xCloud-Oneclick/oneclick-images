@@ -1,0 +1,6 @@
+image: parseable
+version: 3.2.5-xcloud.1
+upstream: https://github.com/parseablehq/parseable
+ref: v3.2.5
+commit: b8fb6ce1f54ec3a6da4596e609b7340ba6da69cf
+dockerfile: Dockerfile
