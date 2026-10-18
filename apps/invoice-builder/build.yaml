@@ -1,0 +1,6 @@
+image: invoice-builder
+version: 3.1.2-xcloud.1
+upstream: https://github.com/piratuks/invoice-builder
+ref: v3.1.2
+commit: 50643a45908db6f675d28753d5628e69864000f6
+dockerfile: Dockerfile
