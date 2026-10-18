@@ -36,7 +36,6 @@ COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/public ./public
 COPY --from=build /usr/src/app/package.json ./package.json
-COPY --from=build /usr/src/app/LICENSE ./LICENSE.upstream
 # The server reads ./docs-config.yaml at start and fails without it; upstream expects it to be
 # mounted. An empty default keeps the built-in defaults; mount a file over it or use APP_CONFIG_* env.
 RUN echo '{}' > docs-config.yaml \
