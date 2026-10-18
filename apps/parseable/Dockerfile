@@ -1,5 +1,5 @@
 # Build context is the upstream Parseable tree at the pinned release commit.
-# The builder is upstream's root Dockerfile (release build, no Kafka feature) with the base image
+# The builder is upstream's root Dockerfile (upstream's own `release-lto` profile: fat LTO, one codegen unit; no Kafka feature) with the base image
 # pinned by digest and the binary stripped. The runtime is distroless cc (glibc, no package manager),
 # the `debug-nonroot` variant only for its busybox wget, which serves the HEALTHCHECK. It runs as the
 # unprivileged uid 65532 and owns the two data directories.
@@ -13,8 +13,8 @@ ENV CARGO_PROFILE_RELEASE_STRIP=symbols \
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/parseable/target \
-    cargo build --release --locked \
- && install -D target/release/parseable /out/usr/bin/parseable \
+    cargo build --profile release-lto --locked \
+ && install -D target/release-lto/parseable /out/usr/bin/parseable \
  && mkdir -p /out/data /out/staging \
  && du -sh /out/usr/bin/parseable
 

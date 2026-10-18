@@ -6,14 +6,6 @@ set -euo pipefail
 
 SIZE_BUDGET_MB=250
 
-size=$(docker image inspect -f '{{.Size}}' "$IMAGE")
-size_mb=$((size / 1000000))
-compressed_mb=$(($(docker save "$IMAGE" | gzip -c | wc -c) / 1000000))
-echo "image size: ${size_mb} MB uncompressed, ${compressed_mb} MB compressed (budget ${SIZE_BUDGET_MB} MB uncompressed)"
-echo "largest layers:"
-docker history --no-trunc --format '{{.Size}}\t{{.CreatedBy}}' "$IMAGE" | sort -hr | head -n 5 | cut -c1-200
-[ "$size_mb" -le "$SIZE_BUDGET_MB" ] || { echo "image is larger than the ${SIZE_BUDGET_MB} MB budget" >&2; exit 1; }
-
 user=$(docker image inspect -f '{{.Config.User}}' "$IMAGE")
 [ "$user" = "65532:65532" ] || { echo "expected user 65532:65532, got '$user'" >&2; exit 1; }
 
@@ -77,4 +69,11 @@ check
 base="http://localhost:$(port)"
 curl -s --max-time 5 -u "admin:$pw" "$base/api/v1/logstream" | grep -q '"smoke"' \
   || { echo "dataset 'smoke' is missing after restart" >&2; exit 1; }
+size=$(docker image inspect -f '{{.Size}}' "$IMAGE")
+size_mb=$((size / 1000000))
+compressed_mb=$(($(docker save "$IMAGE" | gzip -c | wc -c) / 1000000))
+echo "image size: ${size_mb} MB uncompressed, ${compressed_mb} MB compressed (budget ${SIZE_BUDGET_MB} MB uncompressed)"
+echo "largest layers:"
+docker history --no-trunc --format '{{.Size}}\t{{.CreatedBy}}' "$IMAGE" | sort -hr | head -n 5 | cut -c1-200
+[ "$size_mb" -le "$SIZE_BUDGET_MB" ] || { echo "image is larger than the ${SIZE_BUDGET_MB} MB budget" >&2; exit 1; }
 echo "ok: $IMAGE"
