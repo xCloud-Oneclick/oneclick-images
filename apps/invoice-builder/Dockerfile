@@ -3,7 +3,7 @@
 # sources stay in builder stages, and the runtime carries no package manager.
 
 # 1. Build the frontend, server and migrations (full install: the build scripts call root devDependencies)
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS builder
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS builder
 # python3/make/g++ only matter when sqlite3 has no prebuilt binary for the architecture
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
@@ -24,7 +24,7 @@ RUN find dist-renderer -type f \( -name '*.map' -o -name '*.gz' -o -name '*.br' 
  && du -sh dist-renderer dist-server dist-migrations packages/*/dist
 
 # 2. Production dependencies of the server workspace only
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS deps
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
 COPY --from=builder /app/package.json /app/package-lock.json ./
@@ -43,10 +43,10 @@ RUN rm -rf node_modules/sqlite3/deps node_modules/sqlite3/src node_modules/sqlit
  && du -sh node_modules/* node_modules/@*/* | sort -h | tail -n 8
 
 # 3. Runtime: nginx serves the frontend and proxies /api to the node backend (SERVICE=all)
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
 LABEL org.opencontainers.image.url="https://github.com/piratuks/invoice-builder" \
       org.opencontainers.image.title="Invoice Builder" \
-      org.opencontainers.image.version="3.1.2-xcloud.1" \
+      org.opencontainers.image.version="3.1.2-xcloud.2" \
       org.opencontainers.image.licenses="MIT"
 # gettext provides envsubst for the nginx config template. The server needs only the node binary,
 # so the package managers shipped in the base image are removed (npm bundles a vulnerable node-tar).
