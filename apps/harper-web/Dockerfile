@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
  && wasm-pack build --target web --out-name harper_wasm_slim --no-default-features
 
 # 2. SvelteKit build of packages/web (adapter-node)
-FROM node:24.15.0-bookworm@sha256:f22d6a1f082c02f292e86929b5b0442ac2e5eaf438a5dea9b1566601c3e05940 AS node-build
+FROM node:24.22.1-bookworm@sha256:6449e19d8184d84062525b6a7524def03146c2cb04a7f08b076680d0e8e4240a AS node-build
 ENV npm_config_store_dir=/pnpm-store npm_config_package_import_method=copy
 RUN apt-get update && apt-get install -y --no-install-recommends git parallel && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
@@ -58,10 +58,10 @@ RUN cp -a build /out && find /out -type f \( -name '*.map' -o -name '*.gz' \) -d
  && find . -type f -size +3M -exec ls -l {} + | awk '{print $5, $9}' | sort -n | tail -n 25
 
 # 4. Runtime: built server, production modules, package.json
-FROM node:24.15.0-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 LABEL org.opencontainers.image.url="https://github.com/Automattic/harper" \
       org.opencontainers.image.title="Harper web editor" \
-      org.opencontainers.image.version="2.12.0-xcloud.1" \
+      org.opencontainers.image.version="2.12.0-xcloud.2" \
       org.opencontainers.image.licenses="Apache-2.0"
 # The server needs only the node binary: drop the package managers shipped in the base image
 # (npm bundles a vulnerable node-tar that fails the publish scan).
