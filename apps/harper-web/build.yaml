@@ -1,5 +1,5 @@
 image: harper-web
-version: 2.12.0-xcloud.1
+version: 2.12.0-xcloud.2
 upstream: https://github.com/Automattic/harper
 ref: v2.12.0
 commit: b0ab21f5500da525c76553c56ca1b6b7669c6a78
