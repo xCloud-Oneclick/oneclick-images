@@ -1,0 +1,6 @@
+image: emdash
+version: 1.1.0-xcloud.4
+upstream: https://github.com/emdash-cms/emdash
+ref: emdash@1.1.0
+commit: 913cb1bb9b7f08c3ff0d258b4420e53835b6a58e
+dockerfile: Dockerfile
