@@ -4,7 +4,7 @@
 # The toolchain, dev dependencies and sources stay in builder stages.
 
 # 1. Frontend (webpack) and backend (tsc) build
-FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS build
 WORKDIR /usr/src/app
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile --ignore-engines
@@ -12,7 +12,7 @@ COPY . .
 RUN yarn build-all
 
 # 2. Production node_modules only, pruned of types, sourcemaps, docs and tests
-FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS deps
 WORKDIR /usr/src/app
 COPY package.json yarn.lock ./
 # The upstream lockfile pins versions with CRITICAL advisories (locutus 2.0.16, underscore 1.4.4,
@@ -27,10 +27,10 @@ RUN rm -rf node_modules/@types \
  && du -sh node_modules/* node_modules/@*/* | sort -h | tail -n 8
 
 # 3. Runtime
-FROM node:22.23.3-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
 LABEL org.opencontainers.image.url="https://github.com/codex-team/codex.docs" \
       org.opencontainers.image.title="CodeX Docs" \
-      org.opencontainers.image.version="2.2.5-xcloud.1" \
+      org.opencontainers.image.version="2.2.5-xcloud.2" \
       org.opencontainers.image.licenses="Apache-2.0"
 # The server needs only the node binary: drop the package managers shipped in the base image
 # (npm bundles a vulnerable node-tar that fails the publish scan).
