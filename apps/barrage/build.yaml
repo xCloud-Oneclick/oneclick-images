@@ -1,0 +1,6 @@
+image: barrage
+version: 0.3.0-xcloud.1
+upstream: https://github.com/maulik9898/barrage
+ref: "0.3.0"
+commit: 78a7292e8aa3acfc54f8048c516c8fc1aca54d28
+dockerfile: Dockerfile
