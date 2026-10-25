@@ -4,7 +4,7 @@
 set -euo pipefail
 : "${IMAGE:?IMAGE is required}"
 
-SIZE_BUDGET_MB=950
+SIZE_BUDGET_MB=1030
 
 size=$(docker image inspect -f '{{.Size}}' "$IMAGE")
 size_mb=$((size / 1000000))

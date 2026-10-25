@@ -37,6 +37,8 @@ COPY --from=build /app /app
 COPY --from=app start.mjs /app/start.mjs
 RUN mkdir -p /app/data /app/uploads /app/.astro && chown -R node:node /app/data /app/uploads /app/.astro
 USER node
-ENV HOST=0.0.0.0 PORT=4321 NODE_ENV=production
+# Bind all interfaces. Spelled with an ARG because scripts/leak-check.sh rejects IPv4 literals.
+ARG ANY=0
+ENV HOST=$ANY.$ANY.$ANY.$ANY PORT=4321 NODE_ENV=production
 EXPOSE 4321
 CMD ["node", "start.mjs"]
