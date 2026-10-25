@@ -16,6 +16,11 @@ RUN \
   elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
+# Upstream pins next@13.0.1, which carries CVE-2025-29927 (middleware auth bypass, CRITICAL).
+# Barrage has no middleware.ts, so it isn't exploitable in this app, but the published image
+# must still clear the CRITICAL gate: pull the same 13.x line's fixed patch release instead
+# of upstream's package.json/lockfile.
+RUN npm install next@13.5.9 --no-save
 
 # Rebuild the source code only when needed
 FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS builder
