@@ -7,7 +7,7 @@
 # scripts/start.sh with the same steps (rewrite the public URL, migrate, seed the app store, start the
 # server) and no yarn, npx or turbo.
 
-FROM --platform=$BUILDPLATFORM node:20@sha256:8f693eaa7e0a8e71560c9a82b55fd54c2ae920a2ba5d2cde28bac7d1c01c9ba5 AS builder
+FROM --platform=$BUILDPLATFORM node:22.23.4@sha256:18a6d90fd60542269850c80ca03b29b1d9b14d6b221ac7ee8e35b0d33ef904bd AS builder
 
 WORKDIR /calcom
 
@@ -62,7 +62,7 @@ RUN yarn --cwd apps/web workspace @calcom/web run copy-app-store-static
 RUN yarn --cwd apps/web workspace @calcom/web run build
 RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
 
-FROM node:20@sha256:8f693eaa7e0a8e71560c9a82b55fd54c2ae920a2ba5d2cde28bac7d1c01c9ba5 AS builder-two
+FROM node:22.23.4@sha256:18a6d90fd60542269850c80ca03b29b1d9b14d6b221ac7ee8e35b0d33ef904bd AS builder-two
 
 WORKDIR /calcom
 ARG NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000
@@ -100,11 +100,11 @@ RUN rm -rf apps/web/.next/standalone apps/web/.next/cache apps/web/.next/trace a
  && find /calcom -type d \( -name 'turbo' -o -name 'turbo-linux-*' \) -path '*/node_modules/*' -prune -exec rm -rf {} + \
  && rm -f node_modules/.bin/turbo
 
-FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS runner
+FROM node:22.23.4-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS runner
 
 LABEL org.opencontainers.image.url="https://github.com/calcom/cal.diy" \
       org.opencontainers.image.title="Cal.diy" \
-      org.opencontainers.image.version="6.2.0-xcloud.1" \
+      org.opencontainers.image.version="6.2.0-xcloud.2" \
       org.opencontainers.image.licenses="AGPL-3.0"
 
 # openssl is needed by the prisma schema engine. The package managers shipped in the base image are not
