@@ -6,7 +6,7 @@
 # stay on Debian slim.
 
 # 1. Install, patch the template config, build, then prune the installed tree
-FROM node:22.23.4-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS build
+FROM node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d AS build
 WORKDIR /app
 COPY templates/blog/ /app/
 COPY LICENSE /app/LICENSE.upstream
@@ -22,10 +22,10 @@ RUN find node_modules -type d \( -name test -o -name tests -o -name __tests__ \)
  && du -sh node_modules/* node_modules/@*/* | sort -h | tail -n 10
 
 # 2. Runtime
-FROM node:22.23.4-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
+FROM node:22.23.4-bookworm-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d
 LABEL org.opencontainers.image.url="https://github.com/emdash-cms/emdash" \
       org.opencontainers.image.title="EmDash Blog" \
-      org.opencontainers.image.version="1.1.0-xcloud.4" \
+      org.opencontainers.image.version="1.4.0-xcloud.1" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.description="EmDash upstream Blog template with the Node workerd plugin sandbox"
 # The server needs only the node binary: drop the package managers shipped in the base image
