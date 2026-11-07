@@ -17,7 +17,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "@emdash-cms/sandbox-workerd": "0.9.6",
-    "workerd": "1.20261107.1",
+    "workerd": "1.20260730.1",
     "kysely": "0.29.8"
   }
 }
